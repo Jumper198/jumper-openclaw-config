@@ -1,0 +1,13 @@
+# OpenClaw 敏感配置
+openclaw.json
+openclaw.json.bak*
+
+# GitHub tokens 和密钥
+*.token
+*_token
+*.key
+*_secret
+
+# 备份文件
+*.bak
+*.backup

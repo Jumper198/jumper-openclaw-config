@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            color: #f8fafc;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: rgba(30, 41, 59, 0.7);
+            border: 2px solid #38bdf8;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 0 30px rgba(56, 189, 248, 0.2);
+            max-width: 800px;
+            width: 100%;
+        }
+        h1 {
+            color: #38bdf8;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .number {
+            background: #38bdf8;
+            color: #0f172a;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            margin-right: 15px;
+            flex-shrink: 0;
+        }
+        .text b { color: #38bdf8; }
+        .critical {
+            border: 2px solid #ef4444;
+            background: rgba(239, 68, 68, 0.1);
+        }
+        .critical .number { background: #ef4444; }
+        pre {
+            background: #000;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            border: 1px solid #334155;
+            color: #10b981;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>OpenClaw 阿里云配置指南</h1>
+        
+        <div class="step">
+            <div class="number">1</div>
+            <div class="text"><b>基础地址 (Base URL)：</b><br>使用百炼 Coding Plan 专用地址：<br><code>https://coding-intl.dashscope.aliyuncs.com/v1</code></div>
+        </div>
+
+        <div class="step">
+            <div class="number">2</div>
+            <div class="text"><b>API 适配器 (API)：</b><br>在配置文件中选择 <code>openai-completions</code> 模式。</div>
+        </div>
+
+        <div class="step critical">
+            <div class="number">3</div>
+            <div class="text"><b>核心禁忌 (CRITICAL)：</b><br>务必在模型配置中设置 <b><code>"reasoning": false</code></b>。<br>目前百炼兼容接口开启推理会导致返回空消息。</div>
+        </div>
+
+        <div class="step">
+            <div class="number">4</div>
+            <div class="text"><b>模型推荐：</b><br><code>glm-5</code>, <code>qwen3.5-plus</code>, <code>qwen3-max</code></div>
+        </div>
+    </div>
+</body>
+</html>
