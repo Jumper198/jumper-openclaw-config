@@ -4,7 +4,7 @@
 - **What to call them:** Jumper
 - **Pronouns:** He/Him (Assumed based on CEO/Context, can update)
 - **Timezone:** America/Los_Angeles (PST)
-- **Notes:** CEO of a one-person company.
+- **Notes:** CEO of a one-person company. (Prefer 100% Chinese replies).
 
 ## Context
 
