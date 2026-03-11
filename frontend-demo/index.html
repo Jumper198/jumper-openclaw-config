@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A polished frontend demo with a clear information hierarchy, responsive layout, and modern styling."
+    />
+    <title>Northstar Studio</title>
+    <link rel="stylesheet" href="./styles.css" />
+    <script>
+      document.documentElement.classList.add("js-enabled");
+    </script>
+    <script src="./main.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to content</a>
+
+    <div class="page-shell">
+      <header class="site-header">
+        <div class="brand-lockup">
+          <div class="brand-mark" aria-hidden="true"></div>
+          <div>
+            <p class="brand-name">Northstar Studio</p>
+            <p class="brand-tag">Product Interface Demo</p>
+          </div>
+        </div>
+
+        <nav class="site-nav" aria-label="Primary">
+          <a href="#features">Features</a>
+          <a href="#workflow">Workflow</a>
+          <a href="#contact">Contact</a>
+        </nav>
+
+        <a class="button button-secondary" href="#contact">Book a Demo</a>
+      </header>
+
+      <main id="content">
+        <section class="hero section">
+          <div class="hero-copy reveal">
+            <p class="eyebrow">Modern frontend starter</p>
+            <h1>Build landing pages that feel editorial, fast, and intentional.</h1>
+            <p class="hero-text">
+              This demo uses semantic HTML, layered CSS variables, responsive grids,
+              and lightweight JavaScript to create a production-style layout without
+              unnecessary complexity.
+            </p>
+
+            <div class="hero-actions">
+              <a class="button button-primary" href="#features">Explore the Layout</a>
+              <a class="button button-ghost" href="#workflow">See the Process</a>
+            </div>
+
+            <dl class="stats-grid" aria-label="Key metrics">
+              <div class="stat-card">
+                <dt>Launch speed</dt>
+                <dd>2x faster</dd>
+              </div>
+              <div class="stat-card">
+                <dt>Core sections</dt>
+                <dd>6 blocks</dd>
+              </div>
+              <div class="stat-card">
+                <dt>Responsive</dt>
+                <dd>Mobile-first</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="hero-panel reveal">
+            <div class="panel-window">
+              <div class="window-toolbar" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+
+              <div class="panel-content">
+                <div class="panel-topline">
+                  <div>
+                    <p class="panel-label">Live overview</p>
+                    <h2>Interface system snapshot</h2>
+                  </div>
+                  <span class="status-pill">Ready for review</span>
+                </div>
+
+                <div class="mini-chart" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+
+                <div class="detail-grid">
+                  <article class="detail-card accent-card">
+                    <p>Design tokens</p>
+                    <strong>24 variables</strong>
+                    <span>Color, type, spacing, elevation</span>
+                  </article>
+                  <article class="detail-card">
+                    <p>Content model</p>
+                    <strong>Clear hierarchy</strong>
+                    <span>Hero, proof, features, workflow, CTA</span>
+                  </article>
+                  <article class="detail-card wide-card">
+                    <div>
+                      <p>Release checklist</p>
+                      <strong>Accessibility baseline included</strong>
+                    </div>
+                    <ul class="check-list">
+                      <li>Semantic sections</li>
+                      <li>Keyboard-friendly actions</li>
+                      <li>Readable contrast pairs</li>
+                    </ul>
+                  </article>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="trust-bar reveal" aria-label="Highlights">
+          <p>Responsive structure</p>
+          <p>Meaningful motion</p>
+          <p>Reusable styling tokens</p>
+          <p>Easy to expand</p>
+        </section>
+
+        <section class="section reveal" id="features">
+          <div class="section-heading">
+            <p class="eyebrow">Feature blocks</p>
+            <h2>Designed like a real product page, not a placeholder wireframe.</h2>
+          </div>
+
+          <div class="feature-grid">
+            <article class="feature-card">
+              <span class="feature-index">01</span>
+              <h3>Clear information architecture</h3>
+              <p>
+                The layout separates introduction, proof, capabilities, workflow,
+                and conversion so the page scans cleanly on both desktop and mobile.
+              </p>
+            </article>
+            <article class="feature-card">
+              <span class="feature-index">02</span>
+              <h3>Strong visual direction</h3>
+              <p>
+                Instead of default gradients on white, the page uses warm neutrals,
+                deep green accents, layered shadows, and subtle surface textures.
+              </p>
+            </article>
+            <article class="feature-card">
+              <span class="feature-index">03</span>
+              <h3>Practical frontend patterns</h3>
+              <p>
+                Styles are driven by CSS custom properties, animations are restrained,
+                and the JavaScript layer stays minimal and progressive.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section class="section workflow-section reveal" id="workflow">
+          <div class="section-heading">
+            <p class="eyebrow">Workflow</p>
+            <h2>A simple structure you can move into React, Vite, or a design system later.</h2>
+          </div>
+
+          <div class="workflow-layout">
+            <ol class="timeline">
+              <li class="timeline-item">
+                <span class="timeline-marker">1</span>
+                <div>
+                  <h3>Start with content first</h3>
+                  <p>
+                    Define the narrative and section order before styling so the page
+                    solves communication, not just decoration.
+                  </p>
+                </div>
+              </li>
+              <li class="timeline-item">
+                <span class="timeline-marker">2</span>
+                <div>
+                  <h3>Build a tokenized visual system</h3>
+                  <p>
+                    Centralize colors, spacing, border radii, and shadow scales to make
+                    the UI easier to extend and refactor.
+                  </p>
+                </div>
+              </li>
+              <li class="timeline-item">
+                <span class="timeline-marker">3</span>
+                <div>
+                  <h3>Layer in motion last</h3>
+                  <p>
+                    Keep transitions short and purposeful so the interface feels alive
+                    without slowing down reading or navigation.
+                  </p>
+                </div>
+              </li>
+            </ol>
+
+            <aside class="workflow-panel">
+              <p class="eyebrow">Implementation notes</p>
+              <h3>What this demo includes</h3>
+              <ul class="bullet-list">
+                <li>Semantic header, main, section, article, footer</li>
+                <li>Responsive grid that adapts from one to two columns</li>
+                <li>Accessible button styles and visible focus treatment</li>
+                <li>Progressive reveal effects powered by IntersectionObserver</li>
+              </ul>
+            </aside>
+          </div>
+        </section>
+
+        <section class="section showcase-section reveal">
+          <div class="showcase-card">
+            <div class="showcase-copy">
+              <p class="eyebrow">Demo outcome</p>
+              <h2>Use this as a foundation for a landing page, portfolio, SaaS homepage, or internal dashboard shell.</h2>
+              <p>
+                The component boundaries are intentionally simple. You can split this
+                into React components, migrate the tokens into Tailwind config, or wire
+                the CTA areas to real data and forms.
+              </p>
+            </div>
+
+            <div class="showcase-metrics">
+              <div class="metric-card">
+                <span>Sections</span>
+                <strong>06</strong>
+              </div>
+              <div class="metric-card">
+                <span>Files</span>
+                <strong>03</strong>
+              </div>
+              <div class="metric-card">
+                <span>Dependencies</span>
+                <strong>0</strong>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="cta-section section reveal" id="contact">
+          <div class="cta-card">
+            <div>
+              <p class="eyebrow">Next step</p>
+              <h2>Adapt the sections, swap the content, and connect it to your stack.</h2>
+            </div>
+            <a class="button button-primary" href="mailto:hello@example.com">Start from this Demo</a>
+          </div>
+        </section>
+      </main>
+
+      <footer class="site-footer">
+        <p>Northstar Studio</p>
+        <p>Frontend demo template for modern product pages.</p>
+        <p>&copy; <span id="year"></span></p>
+      </footer>
+    </div>
+  </body>
+</html>
