@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>流程中心 - 待办/已办列表 Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: "#eef6ff",
+                100: "#dbeafe",
+                500: "#2563eb",
+                600: "#1d4ed8",
+                700: "#1e40af",
+              },
+            },
+            boxShadow: {
+              panel: "0 18px 45px rgba(15, 23, 42, 0.08)",
+            },
+            fontFamily: {
+              sans: ["PingFang SC", "Microsoft YaHei", "sans-serif"],
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      body {
+        background:
+          radial-gradient(circle at top left, rgba(37, 99, 235, 0.12), transparent 28%),
+          radial-gradient(circle at top right, rgba(15, 118, 110, 0.12), transparent 22%),
+          linear-gradient(180deg, #f8fbff 0%, #eef4fb 46%, #f6f8fc 100%);
+      }
+
+      .panel-surface {
+        backdrop-filter: blur(10px);
+      }
+
+      .table-row-alert {
+        background: linear-gradient(90deg, rgba(254, 242, 242, 0.9), rgba(255, 255, 255, 0.95));
+      }
+
+      .table-row-soon {
+        background: linear-gradient(90deg, rgba(255, 251, 235, 0.9), rgba(255, 255, 255, 0.95));
+      }
+    </style>
+  </head>
+  <body class="min-h-screen text-slate-800">
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script type="text/babel">
+      const { useEffect, useState } = React;
+
+      const MS_PER_DAY = 24 * 60 * 60 * 1000;
+      const PAGE_SIZE = 6;
+      const DEFAULT_FILTERS = {
+        subject: "",
+        workflowName: "",
+        initiator: "",
+        startDate: "",
+        endDate: "",
+      };
+
+      function startOfDay(value) {
+        const date = new Date(value);
+        date.setHours(0, 0, 0, 0);
+        return date;
+      }
+
+      function addDays(value, amount) {
+        const date = startOfDay(value);
+        date.setDate(date.getDate() + amount);
+        return date;
+      }
+
+      function toInputDate(value) {
+        const date = startOfDay(value);
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      function formatDate(value) {
+        return new Intl.DateTimeFormat("zh-CN", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        }).format(new Date(value));
+      }
+
+      function dateDiffInDays(target, base) {
+        return Math.round((startOfDay(target) - startOfDay(base)) / MS_PER_DAY);
+      }
+
+      function getDueMeta(task, today) {
+        const dueInDays = dateDiffInDays(task.dueDate, today);
+
+        if (task.type === "done") {
+          const completedInDays = dateDiffInDays(task.completedAt, task.dueDate);
+          if (completedInDays > 0) {
+            return {
+              rowClass: "",
+              badgeClass: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
+              textClass: "text-amber-700",
+              label: `逾期办结 ${completedInDays} 天`,
+            };
+          }
+          return {
+            rowClass: "",
+            badgeClass: "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200",
+            textClass: "text-slate-600",
+            label: "按期办结",
+          };
+        }
+
+        if (dueInDays < 0) {
+          return {
+            rowClass: "table-row-alert",
+            badgeClass: "bg-red-50 text-red-700 ring-1 ring-inset ring-red-200",
+            textClass: "text-red-700",
+            label: `逾期 ${Math.abs(dueInDays)} 天`,
+          };
+        }
+
+        if (dueInDays === 0) {
+          return {
+            rowClass: "table-row-soon",
+            badgeClass: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
+            textClass: "text-amber-700",
+            label: "今日到期",
+          };
+        }
+
+        if (dueInDays <= 5) {
+          return {
+            rowClass: "table-row-soon",
+            badgeClass: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
+            textClass: "text-amber-700",
+            label: `${dueInDays} 天内到期`,
+          };
+        }
+
+        return {
+          rowClass: "",
+          badgeClass: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
+          textClass: "text-emerald-700",
+          label: `剩余 ${dueInDays} 天`,
+        };
+      }
+
+      function getStatusMeta(status) {
+        const map = {
+          待处理: "bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-200",
+          待审批: "bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200",
+          协办中: "bg-teal-50 text-teal-700 ring-1 ring-inset ring-teal-200",
+          已完成: "bg-emerald-50 text-emerald-700 ring-1 ring-inset ring-emerald-200",
+          已归档: "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200",
+        };
+        return map[status] || "bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200";
+      }
+
+      function getCategoryMeta(category) {
+        const map = {
+          发明专利: "bg-blue-50 text-blue-700",
+          商标: "bg-cyan-50 text-cyan-700",
+          软件著作权: "bg-emerald-50 text-emerald-700",
+          合同法务: "bg-slate-100 text-slate-700",
+          无效答辩: "bg-rose-50 text-rose-700",
+          PCT国际: "bg-indigo-50 text-indigo-700",
+          著作权: "bg-teal-50 text-teal-700",
+        };
+        return map[category] || "bg-slate-100 text-slate-700";
+      }
+
+      function createTasks() {
+        const today = startOfDay(new Date());
+
+        return [
+          {
+            id: "T-20260310-001",
+            type: "todo",
+            category: "发明专利",
+            subject: "高安全电池包热管理结构专利申请",
+            workflowName: "专利申请流程",
+            currentNode: "部门领导审批",
+            currentHandler: "王敏",
+            initiator: "李晨",
+            dueDate: toInputDate(addDays(today, -3)),
+            createdAt: toInputDate(addDays(today, -12)),
+            status: "待审批",
+          },
+          {
+            id: "T-20260310-002",
+            type: "todo",
+            category: "商标",
+            subject: "欧洲子品牌商标注册资料补正",
+            workflowName: "商标注册流程",
+            currentNode: "法务复核",
+            currentHandler: "赵青",
+            initiator: "刘思",
+            dueDate: toInputDate(addDays(today, 0)),
+            createdAt: toInputDate(addDays(today, -6)),
+            status: "待处理",
+          },
+          {
+            id: "T-20260310-003",
+            type: "todo",
+            category: "软件著作权",
+            subject: "BMS 控制平台软著申报",
+            workflowName: "软件著作权登记",
+            currentNode: "材料校验",
+            currentHandler: "刘涛",
+            initiator: "周宁",
+            dueDate: toInputDate(addDays(today, 2)),
+            createdAt: toInputDate(addDays(today, -4)),
+            status: "待处理",
+          },
+          {
+            id: "T-20260310-004",
+            type: "todo",
+            category: "无效答辩",
+            subject: "竞争对手无效宣告应对方案确认",
+            workflowName: "专利无效答辩流程",
+            currentNode: "会签确认",
+            currentHandler: "陈洁",
+            initiator: "韩骁",
+            dueDate: toInputDate(addDays(today, 4)),
+            createdAt: toInputDate(addDays(today, -8)),
+            status: "协办中",
+          },
+          {
+            id: "T-20260310-005",
+            type: "todo",
+            category: "合同法务",
+            subject: "联合开发协议知识产权条款评审",
+            workflowName: "合同评审流程",
+            currentNode: "法务审核",
+            currentHandler: "周岚",
+            initiator: "孟晓",
+            dueDate: toInputDate(addDays(today, 7)),
+            createdAt: toInputDate(addDays(today, -3)),
+            status: "待处理",
+          },
+          {
+            id: "T-20260310-006",
+            type: "todo",
+            category: "PCT国际",
+            subject: "欧洲国家阶段进入费用确认",
+            workflowName: "PCT 国家阶段流程",
+            currentNode: "费用审批",
+            currentHandler: "孙航",
+            initiator: "张然",
+            dueDate: toInputDate(addDays(today, 1)),
+            createdAt: toInputDate(addDays(today, -10)),
+            status: "待审批",
+          },
+          {
+            id: "T-20260310-007",
+            type: "todo",
+            category: "著作权",
+            subject: "工业设计图稿著作权登记资料提交",
+            workflowName: "作品著作权登记",
+            currentNode: "资料提交",
+            currentHandler: "马欣",
+            initiator: "贺琛",
+            dueDate: toInputDate(addDays(today, 10)),
+            createdAt: toInputDate(addDays(today, -2)),
+            status: "待处理",
+          },
+          {
+            id: "D-20260310-001",
+            type: "done",
+            category: "发明专利",
+            subject: "高倍率电芯封装结构提案已办结",
+            workflowName: "专利申请流程",
+            currentNode: "流程归档",
+            currentHandler: "系统归档",
+            initiator: "李晨",
+            dueDate: toInputDate(addDays(today, -4)),
+            completedAt: toInputDate(addDays(today, -1)),
+            createdAt: toInputDate(addDays(today, -15)),
+            status: "已完成",
+          },
+          {
+            id: "D-20260310-002",
+            type: "done",
+            category: "商标",
+            subject: "主品牌商标续展资料补齐",
+            workflowName: "商标续展流程",
+            currentNode: "档案归档",
+            currentHandler: "档案管理员",
+            initiator: "刘思",
+            dueDate: toInputDate(addDays(today, -9)),
+            completedAt: toInputDate(addDays(today, -10)),
+            createdAt: toInputDate(addDays(today, -20)),
+            status: "已归档",
+          },
+          {
+            id: "D-20260310-003",
+            type: "done",
+            category: "软件著作权",
+            subject: "视觉检测系统软著流程办结",
+            workflowName: "软件著作权登记",
+            currentNode: "流程完成",
+            currentHandler: "系统归档",
+            initiator: "周宁",
+            dueDate: toInputDate(addDays(today, -2)),
+            completedAt: toInputDate(addDays(today, -2)),
+            createdAt: toInputDate(addDays(today, -13)),
+            status: "已完成",
+          },
+          {
+            id: "D-20260310-004",
+            type: "done",
+            category: "合同法务",
+            subject: "海外合作协议 IP 条款复核",
+            workflowName: "合同评审流程",
+            currentNode: "流程完成",
+            currentHandler: "系统归档",
+            initiator: "孟晓",
+            dueDate: toInputDate(addDays(today, -6)),
+            completedAt: toInputDate(addDays(today, -4)),
+            createdAt: toInputDate(addDays(today, -18)),
+            status: "已完成",
+          },
+        ];
+      }
+
+      function matchQuickFilter(task, quickFilter, today) {
+        const dueInDays = dateDiffInDays(task.dueDate, today);
+        if (quickFilter === "overdue") {
+          return dueInDays < 0;
+        }
+        if (quickFilter === "today") {
+          return dueInDays === 0;
+        }
+        if (quickFilter === "fiveDays") {
+          return dueInDays >= 0 && dueInDays <= 5;
+        }
+        return true;
+      }
+
+      function applyFilters(list, filters) {
+        return list.filter((task) => {
+          const matchesSubject =
+            !filters.subject || task.subject.toLowerCase().includes(filters.subject.toLowerCase());
+          const matchesWorkflow =
+            !filters.workflowName ||
+            task.workflowName.toLowerCase().includes(filters.workflowName.toLowerCase());
+          const matchesInitiator =
+            !filters.initiator ||
+            task.initiator.toLowerCase().includes(filters.initiator.toLowerCase());
+          const matchesStart = !filters.startDate || task.createdAt >= filters.startDate;
+          const matchesEnd = !filters.endDate || task.createdAt <= filters.endDate;
+          return (
+            matchesSubject &&
+            matchesWorkflow &&
+            matchesInitiator &&
+            matchesStart &&
+            matchesEnd
+          );
+        });
+      }
+
+      function sortTasks(list) {
+        return [...list].sort((a, b) => {
+          if (a.type === "todo" && b.type === "todo") {
+            return new Date(a.dueDate) - new Date(b.dueDate);
+          }
+          if (a.type === "done" && b.type === "done") {
+            return new Date(b.completedAt) - new Date(a.completedAt);
+          }
+          return 0;
+        });
+      }
+
+      function App() {
+        const [tasks] = useState(() => createTasks());
+        const [currentView, setCurrentView] = useState("todo");
+        const [quickFilter, setQuickFilter] = useState("all");
+        const [showAdvanced, setShowAdvanced] = useState(true);
+        const [draftFilters, setDraftFilters] = useState(() => ({ ...DEFAULT_FILTERS }));
+        const [appliedFilters, setAppliedFilters] = useState(() => ({ ...DEFAULT_FILTERS }));
+        const [page, setPage] = useState(1);
+        const [drawer, setDrawer] = useState(null);
+
+        const today = startOfDay(new Date());
+        const todoCount = tasks.filter((task) => task.type === "todo").length;
+        const doneCount = tasks.filter((task) => task.type === "done").length;
+
+        const searchedTodo = applyFilters(
+          tasks.filter((task) => task.type === "todo"),
+          appliedFilters
+        );
+        const overdueCount = searchedTodo.filter(
+          (task) => dateDiffInDays(task.dueDate, today) < 0
+        ).length;
+        const todayCount = searchedTodo.filter(
+          (task) => dateDiffInDays(task.dueDate, today) === 0
+        ).length;
+        const fiveDayCount = searchedTodo.filter((task) => {
+          const dueInDays = dateDiffInDays(task.dueDate, today);
+          return dueInDays >= 0 && dueInDays <= 5;
+        }).length;
+
+        const baseList = applyFilters(
+          tasks.filter((task) => task.type === currentView),
+          appliedFilters
+        );
+        const filteredList =
+          currentView === "todo"
+            ? sortTasks(baseList.filter((task) => matchQuickFilter(task, quickFilter, today)))
+            : sortTasks(baseList);
+
+        const totalPages = Math.max(1, Math.ceil(filteredList.length / PAGE_SIZE));
+        const safePage = Math.min(page, totalPages);
+        const pagedTasks = filteredList.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+        useEffect(() => {
+          setPage(1);
+        }, [currentView, quickFilter, JSON.stringify(appliedFilters)]);
+
+        function updateDraftField(field, value) {
+          setDraftFilters((previous) => ({
+            ...previous,
+            [field]: value,
+          }));
+        }
+
+        function applySearch() {
+          setAppliedFilters({ ...draftFilters });
+        }
+
+        function resetSearch() {
+          setDraftFilters({ ...DEFAULT_FILTERS });
+          setAppliedFilters({ ...DEFAULT_FILTERS });
+          setQuickFilter("all");
+          setCurrentView("todo");
+          setDrawer(null);
+        }
+
+        function openDrawer(task, mode) {
+          setDrawer({ task, mode });
+        }
+
+        function renderCard(title, value, accent, detail, isActive, onClick) {
+          const cardClass = {
+            red: "from-red-50 to-white border-red-100",
+            amber: "from-amber-50 to-white border-amber-100",
+            blue: "from-blue-50 to-white border-blue-100",
+          }[accent];
+
+          const badgeClass = {
+            red: "bg-red-600",
+            amber: "bg-amber-500",
+            blue: "bg-blue-600",
+          }[accent];
+
+          return (
+            <button
+              type="button"
+              onClick={onClick}
+              className={`rounded-2xl border bg-gradient-to-br p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${cardClass} ${
+                isActive ? "ring-2 ring-offset-2 ring-offset-white ring-brand-500" : ""
+              }`}
+            >
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-500">{title}</p>
+                  <p className="mt-3 text-3xl font-semibold tracking-tight text-slate-900">{value}</p>
+                </div>
+                <span className={`mt-1 h-3 w-3 rounded-full ${badgeClass}`}></span>
+              </div>
+              <p className="mt-4 text-sm text-slate-500">{detail}</p>
+            </button>
+          );
+        }
+
+        return (
+          <div className="min-h-screen px-4 py-8 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-[1480px] space-y-6">
+              <section className="panel-surface overflow-hidden rounded-[28px] border border-white/70 bg-white/85 shadow-panel">
+                <div className="border-b border-slate-200/80 px-6 py-5 sm:px-8">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <div className="flex items-center gap-3">
+                        <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold tracking-[0.18em] text-brand-700">
+                          TASK LIST PAGE
+                        </span>
+                        <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-600">
+                          流程中心 / 待办已办列表
+                        </span>
+                      </div>
+                      <h1 className="mt-4 text-3xl font-semibold tracking-tight text-slate-900">
+                        企业知识产权流程中心
+                      </h1>
+                      <p className="mt-2 text-sm text-slate-500">
+                        聚焦任务处置，提供红黄蓝预警、快捷筛选和业务表格联动。
+                      </p>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <span className="block text-xs uppercase tracking-[0.14em] text-slate-400">
+                          数据基准
+                        </span>
+                        <span className="mt-1 block font-medium text-slate-700">
+                          {formatDate(today)}
+                        </span>
+                      </div>
+                      <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                        <span className="block text-xs uppercase tracking-[0.14em] text-slate-400">
+                          本次演示
+                        </span>
+                        <span className="mt-1 block font-medium text-slate-700">
+                          单文件 React + Tailwind
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="px-6 py-6 sm:px-8">
+                  <div className="grid gap-4 lg:grid-cols-3">
+                    {renderCard(
+                      "逾期任务",
+                      overdueCount,
+                      "red",
+                      "红色预警，点击仅查看逾期待办。",
+                      currentView === "todo" && quickFilter === "overdue",
+                      () => {
+                        setCurrentView("todo");
+                        setQuickFilter("overdue");
+                      }
+                    )}
+                    {renderCard(
+                      "近期到期",
+                      fiveDayCount,
+                      "amber",
+                      "黄色预警，含今日和未来 5 天内到期任务。",
+                      currentView === "todo" && quickFilter === "fiveDays",
+                      () => {
+                        setCurrentView("todo");
+                        setQuickFilter("fiveDays");
+                      }
+                    )}
+                    {renderCard(
+                      "总待办",
+                      searchedTodo.length,
+                      "blue",
+                      "蓝色总览，点击恢复全部待办。",
+                      currentView === "todo" && quickFilter === "all",
+                      () => {
+                        setCurrentView("todo");
+                        setQuickFilter("all");
+                      }
+                    )}
+                  </div>
+                </div>
+              </section>
+
+              <section className="panel-surface rounded-[28px] border border-white/70 bg-white/85 p-6 shadow-panel sm:p-8">
+                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+                  <div className="space-y-4">
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">高级检索区</h2>
+                      <p className="mt-1 text-sm text-slate-500">
+                        包含快捷过滤组与折叠查询表单，直接对应 PRD 的 TaskListPage。
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-3">
+                      {[
+                        { key: "all", label: "全部", count: searchedTodo.length },
+                        { key: "overdue", label: "逾期", count: overdueCount },
+                        { key: "today", label: "今日", count: todayCount },
+                        { key: "fiveDays", label: "5天内", count: fiveDayCount },
+                      ].map((item) => {
+                        const active = currentView === "todo" && quickFilter === item.key;
+                        return (
+                          <button
+                            key={item.key}
+                            type="button"
+                            onClick={() => {
+                              setCurrentView("todo");
+                              setQuickFilter(item.key);
+                            }}
+                            className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                              active
+                                ? "bg-slate-900 text-white shadow-sm"
+                                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                            }`}
+                          >
+                            {item.label}
+                            <span className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
+                              active ? "bg-white/20 text-white" : "bg-white text-slate-500"
+                            }`}>
+                              {item.count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-3">
+                    <div className="rounded-full border border-slate-200 bg-slate-50 p-1">
+                      <button
+                        type="button"
+                        onClick={() => setCurrentView("todo")}
+                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                          currentView === "todo"
+                            ? "bg-brand-600 text-white shadow-sm"
+                            : "text-slate-600"
+                        }`}
+                      >
+                        待办任务
+                        <span className="ml-2 text-xs opacity-80">{todoCount}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentView("done")}
+                        className={`rounded-full px-4 py-2 text-sm font-medium transition ${
+                          currentView === "done"
+                            ? "bg-slate-900 text-white shadow-sm"
+                            : "text-slate-600"
+                        }`}
+                      >
+                        已办任务
+                        <span className="ml-2 text-xs opacity-80">{doneCount}</span>
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowAdvanced((value) => !value)}
+                      className="rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                    >
+                      {showAdvanced ? "收起检索" : "展开检索"}
+                    </button>
+                  </div>
+                </div>
+
+                {currentView === "done" ? (
+                  <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                    快捷过滤组仅作用于待办列表，已办列表保留高级检索与详情查看。
+                  </div>
+                ) : null}
+
+                {showAdvanced ? (
+                  <div className="mt-6 grid gap-4 rounded-3xl border border-slate-200 bg-slate-50/80 p-5 lg:grid-cols-12">
+                    <label className="lg:col-span-3">
+                      <span className="mb-2 block text-sm font-medium text-slate-600">主题</span>
+                      <input
+                        type="text"
+                        value={draftFilters.subject}
+                        onChange={(event) => updateDraftField("subject", event.target.value)}
+                        placeholder="输入业务主题关键字"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+                      />
+                    </label>
+                    <label className="lg:col-span-3">
+                      <span className="mb-2 block text-sm font-medium text-slate-600">流程名称</span>
+                      <input
+                        type="text"
+                        value={draftFilters.workflowName}
+                        onChange={(event) => updateDraftField("workflowName", event.target.value)}
+                        placeholder="例如：专利申请流程"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+                      />
+                    </label>
+                    <label className="lg:col-span-2">
+                      <span className="mb-2 block text-sm font-medium text-slate-600">发起人</span>
+                      <input
+                        type="text"
+                        value={draftFilters.initiator}
+                        onChange={(event) => updateDraftField("initiator", event.target.value)}
+                        placeholder="按发起人筛选"
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+                      />
+                    </label>
+                    <label className="lg:col-span-2">
+                      <span className="mb-2 block text-sm font-medium text-slate-600">开始日期</span>
+                      <input
+                        type="date"
+                        value={draftFilters.startDate}
+                        onChange={(event) => updateDraftField("startDate", event.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+                      />
+                    </label>
+                    <label className="lg:col-span-2">
+                      <span className="mb-2 block text-sm font-medium text-slate-600">结束日期</span>
+                      <input
+                        type="date"
+                        value={draftFilters.endDate}
+                        onChange={(event) => updateDraftField("endDate", event.target.value)}
+                        className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+                      />
+                    </label>
+
+                    <div className="flex flex-wrap items-end gap-3 lg:col-span-12">
+                      <button
+                        type="button"
+                        onClick={applySearch}
+                        className="rounded-2xl bg-brand-600 px-5 py-3 text-sm font-medium text-white transition hover:bg-brand-700"
+                      >
+                        查询
+                      </button>
+                      <button
+                        type="button"
+                        onClick={resetSearch}
+                        className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                      >
+                        重置
+                      </button>
+                      <p className="text-sm text-slate-500">
+                        当前按发起时间过滤，表格显示 {filteredList.length} 条记录。
+                      </p>
+                    </div>
+                  </div>
+                ) : null}
+              </section>
+
+              <section className="panel-surface overflow-hidden rounded-[28px] border border-white/70 bg-white/85 shadow-panel">
+                <div className="border-b border-slate-200/80 px-6 py-5 sm:px-8">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-900">业务表格</h2>
+                      <p className="mt-1 text-sm text-slate-500">
+                        必显列包含流程分类、主题、当前节点、当前处理人、办理期限，并提供办理 / 查看行操作。
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-3 text-sm">
+                      <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-600">
+                        当前视图：{currentView === "todo" ? "待办任务" : "已办任务"}
+                      </span>
+                      <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-600">
+                        共 {filteredList.length} 条
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200">
+                    <thead className="bg-slate-50/90">
+                      <tr className="text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        <th className="px-6 py-4 sm:px-8">流程分类</th>
+                        <th className="px-6 py-4">主题</th>
+                        <th className="px-6 py-4">流程名称</th>
+                        <th className="px-6 py-4">当前节点</th>
+                        <th className="px-6 py-4">当前处理人</th>
+                        <th className="px-6 py-4">发起人</th>
+                        <th className="px-6 py-4">办理期限</th>
+                        <th className="px-6 py-4">状态标识</th>
+                        <th className="px-6 py-4">操作</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-200/80 bg-white text-sm">
+                      {pagedTasks.length === 0 ? (
+                        <tr>
+                          <td colSpan="9" className="px-6 py-16 text-center text-slate-500 sm:px-8">
+                            未命中符合条件的任务，请调整高级检索条件。
+                          </td>
+                        </tr>
+                      ) : (
+                        pagedTasks.map((task) => {
+                          const dueMeta = getDueMeta(task, today);
+                          return (
+                            <tr key={task.id} className={`transition hover:bg-slate-50 ${dueMeta.rowClass}`}>
+                              <td className="px-6 py-5 align-top sm:px-8">
+                                <div className="space-y-2">
+                                  <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getCategoryMeta(task.category)}`}>
+                                    {task.category}
+                                  </span>
+                                  <p className="text-xs text-slate-400">{task.id}</p>
+                                </div>
+                              </td>
+                              <td className="px-6 py-5 align-top">
+                                <div className="max-w-[280px]">
+                                  <p className="font-medium leading-6 text-slate-900">{task.subject}</p>
+                                  <p className="mt-2 text-xs text-slate-500">
+                                    发起时间：{formatDate(task.createdAt)}
+                                  </p>
+                                </div>
+                              </td>
+                              <td className="px-6 py-5 align-top text-slate-600">{task.workflowName}</td>
+                              <td className="px-6 py-5 align-top">
+                                <div className="font-medium text-slate-800">{task.currentNode}</div>
+                              </td>
+                              <td className="px-6 py-5 align-top text-slate-600">{task.currentHandler}</td>
+                              <td className="px-6 py-5 align-top text-slate-600">{task.initiator}</td>
+                              <td className="px-6 py-5 align-top">
+                                <div className="space-y-2">
+                                  <p className={`font-medium ${dueMeta.textClass}`}>{formatDate(task.dueDate)}</p>
+                                  <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${dueMeta.badgeClass}`}>
+                                    {dueMeta.label}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-5 align-top">
+                                <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusMeta(task.status)}`}>
+                                  {task.status}
+                                </span>
+                              </td>
+                              <td className="px-6 py-5 align-top">
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={task.type !== "todo"}
+                                    onClick={() => openDrawer(task, "handle")}
+                                    className={`rounded-xl px-3 py-2 text-sm font-medium transition ${
+                                      task.type === "todo"
+                                        ? "bg-brand-600 text-white hover:bg-brand-700"
+                                        : "cursor-not-allowed bg-slate-100 text-slate-400"
+                                    }`}
+                                  >
+                                    办理
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => openDrawer(task, "view")}
+                                    className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50"
+                                  >
+                                    查看
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                <div className="flex flex-col gap-4 border-t border-slate-200/80 px-6 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-8">
+                  <p className="text-sm text-slate-500">
+                    第 {safePage} / {totalPages} 页，每页 {PAGE_SIZE} 条。
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={safePage === 1}
+                      onClick={() => setPage((value) => Math.max(1, value - 1))}
+                      className={`rounded-xl px-3 py-2 text-sm font-medium ${
+                        safePage === 1
+                          ? "cursor-not-allowed bg-slate-100 text-slate-400"
+                          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      上一页
+                    </button>
+                    {Array.from({ length: totalPages }, (_, index) => index + 1).map((pageNumber) => (
+                      <button
+                        key={pageNumber}
+                        type="button"
+                        onClick={() => setPage(pageNumber)}
+                        className={`rounded-xl px-3 py-2 text-sm font-medium ${
+                          safePage === pageNumber
+                            ? "bg-slate-900 text-white"
+                            : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        {pageNumber}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      disabled={safePage === totalPages}
+                      onClick={() => setPage((value) => Math.min(totalPages, value + 1))}
+                      className={`rounded-xl px-3 py-2 text-sm font-medium ${
+                        safePage === totalPages
+                          ? "cursor-not-allowed bg-slate-100 text-slate-400"
+                          : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                      }`}
+                    >
+                      下一页
+                    </button>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            {drawer ? (
+              <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/30 backdrop-blur-sm">
+                <div className="flex h-full w-full max-w-[520px] flex-col bg-white shadow-2xl">
+                  <div className="flex items-start justify-between border-b border-slate-200 px-6 py-5">
+                    <div>
+                      <p className="text-sm font-medium text-brand-600">
+                        {drawer.mode === "handle" ? "任务办理" : "任务查看"}
+                      </p>
+                      <h3 className="mt-2 text-xl font-semibold text-slate-900">
+                        {drawer.task.subject}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDrawer(null)}
+                      className="rounded-full border border-slate-200 px-3 py-1.5 text-sm text-slate-500 transition hover:bg-slate-50"
+                    >
+                      关闭
+                    </button>
+                  </div>
+
+                  <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6">
+                    <div className="grid gap-4 rounded-3xl border border-slate-200 bg-slate-50 p-5 sm:grid-cols-2">
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">流程分类</p>
+                        <p className="mt-2 text-sm font-medium text-slate-800">{drawer.task.category}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">流程名称</p>
+                        <p className="mt-2 text-sm font-medium text-slate-800">{drawer.task.workflowName}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">当前节点</p>
+                        <p className="mt-2 text-sm font-medium text-slate-800">{drawer.task.currentNode}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">当前处理人</p>
+                        <p className="mt-2 text-sm font-medium text-slate-800">{drawer.task.currentHandler}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">发起人</p>
+                        <p className="mt-2 text-sm font-medium text-slate-800">{drawer.task.initiator}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs uppercase tracking-[0.16em] text-slate-400">办理期限</p>
+                        <p className="mt-2 text-sm font-medium text-slate-800">
+                          {formatDate(drawer.task.dueDate)}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="rounded-3xl border border-slate-200 p-5">
+                      <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-semibold text-slate-900">任务摘要</h4>
+                        <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusMeta(drawer.task.status)}`}>
+                          {drawer.task.status}
+                        </span>
+                      </div>
+                      <p className="mt-4 text-sm leading-7 text-slate-600">
+                        该任务用于演示 TaskListPage 中的“办理 / 查看”行操作。当前页面已将业务字段、预警状态、
+                        查询条件和表格视图打通，便于后续接入真实流程实例与任务数据源。
+                      </p>
+                    </div>
+
+                    {drawer.mode === "handle" && drawer.task.type === "todo" ? (
+                      <div className="rounded-3xl border border-brand-100 bg-brand-50/60 p-5">
+                        <h4 className="text-sm font-semibold text-slate-900">办理意见</h4>
+                        <textarea
+                          rows="5"
+                          defaultValue="已核对提案内容，建议按当前节点继续流转。"
+                          className="mt-4 w-full rounded-2xl border border-brand-100 bg-white px-4 py-3 text-sm outline-none focus:border-brand-500 focus:ring-4 focus:ring-brand-100"
+                        ></textarea>
+                        <div className="mt-4 flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setDrawer(null)}
+                            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-600"
+                          >
+                            暂存
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setDrawer(null)}
+                            className="rounded-2xl bg-brand-600 px-4 py-2.5 text-sm font-medium text-white"
+                          >
+                            提交办理
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        );
+      }
+
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<App />);
+    </script>
+  </body>
+</html>

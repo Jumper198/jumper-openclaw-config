@@ -1,0 +1,33 @@
+# Memory
+
+## 2026-03-11
+- Reworked `src/app/pages/CreateProposalForm.tsx` into a wider split layout with a desktop right-side helper rail (`录入概览 / 提交前检查 / 流程预览 / 录入提示`) so the proposal form no longer leaves a large empty area on the right.
+- Tightened `src/app/pages/CreateProposalForm.tsx` again for enterprise-form density by shrinking hero/card headings, labels, hints, table rows, attachment list text, and sticky action-bar copy while keeping all form controls at compact `h-8` / `text-sm` scale.
+- Verified the proposal-form whitespace and typography fix still builds cleanly with `npm run build`.
+- Attempted twice to emit `openclaw system event --text 'Done: 提案表单留白与字体修复' --mode now`, but the local gateway again closed abnormally with `1006`.
+- Applied the TaskListPage compact-density ratio to `src/app/pages/CreateProposalForm.tsx`, shrinking the hero, all five cards, field spacing, table rows, attachment area, and sticky action bar into a denser B-end form layout.
+- Compressed `src/app/pages/WorkflowDetailPage.tsx` by tightening page/card padding, read-only field blocks, right-side action area, and approval timeline node height/spacing for a more data-dense split view.
+- Tightened `src/app/pages/Dashboard.tsx` plus `QuickAccess`, `TaskTable`, `WorkCalendar`, `CollectionsCard`, and `NoticeAndNews` so the dashboard cards, calendar, tabs, and list rows use less whitespace while preserving the existing structure.
+- Verified the global UI density pass still builds cleanly with `npm run build`.
+- Attempted twice to emit `openclaw system event --text 'Done: 全局 UI 密集度优化完成' --mode now`, but the local gateway again closed abnormally with `1006`.
+- Further compressed `src/app/pages/TaskListPage.tsx` by collapsing the top hero into a compact summary row, removing stat-card body copy, shrinking advanced-search controls to `h-8`, and pulling the data table header into the first screen area.
+- Verified the second-pass TaskListPage density reduction still builds cleanly with `npm run build`.
+- Tightened `src/app/pages/TaskListPage.tsx` into a denser admin-style layout by reducing hero/stat/search/table spacing, shrinking stat numerals, and compacting the advanced filter controls so more content fits above the fold.
+- Verified the TaskListPage density update still builds cleanly with `npm run build`.
+- Rebuilt `src/app/pages/TaskListPage.tsx` into a PRD-aligned workflow todo page with top stats cards for 逾期 / 临近到期 / 总待办, quick filters, an expandable advanced search panel, and a due-date-highlighted task table with 办理 / 查看 actions.
+- Rebuilt `src/app/pages/WorkflowDetailPage.tsx` into a two-column workflow detail view with a left-side read-only form summary and a right-side approval timeline plus 通过 / 驳回 action area.
+- Added `src/app/pages/workflowData.ts` as the shared mock workflow/task source so the list page and detail page use consistent fields, deadline warning logic, and timeline data.
+- Verified the new workflow pages build cleanly with `npm run build`.
+- Refactored `src/app/layouts/MainLayout.tsx` and `src/app/components/Sidebar.tsx` so the admin shell now uses a fixed top navigation, a viewport-height sidebar below it, and an independently scrollable `<Outlet />` content pane to stop the sidebar from moving during long-form page scrolls.
+- Verified the independent-scroll layout change still builds with `npm run build`.
+- Attempted to emit `openclaw system event --text 'Done: 侧边栏独立滚动已修复' --mode now` twice, but the local gateway RPC probe is still failing with `1006 abnormal closure` even though the LaunchAgent is loaded on port `18789`.
+- Fixed the route shell regression that left the frontend unstyled/collapsed after the router refactor by restoring root-level height reset in `src/styles/index.css` and wrapping the routed content in a flex container in `src/app/layouts/MainLayout.tsx`.
+- Verified the app still builds with `npm run build`.
+- Added a new `src/app/components/Sidebar.tsx` and reworked `src/app/layouts/MainLayout.tsx` into a standard admin shell with top navigation, left sidebar navigation, and a scrollable content pane.
+- Added `/innovation` and `/settings` placeholder routes so the new sidebar entries for 我的创新 and 系统配置 do not resolve to dead links.
+- Added an 资产管理 sidebar section with 资产台账 and 奖金结算 submenu entries, plus placeholder routes at `/assets/ledger` and `/assets/bonus-settlement` so the new navigation is clickable.
+- Rebuilt `src/app/pages/CreateProposalForm.tsx` into a five-card proposal form aligned with the流程中心方案: 基本信息、提案信息、费用承担、发明人信息、附件, plus a sticky action bar for 取消 / 暂存草稿 / 启动流程.
+- Implemented a dynamic inventor table with add/remove row actions and strict frontend validation that keeps the reward-percentage total at exactly 100% before enabling submission.
+- Verified the updated proposal form still builds cleanly with `npm run build`.
+- Attempted to emit `openclaw system event --text 'Done: 提案大表单及 100% 校验逻辑开发完成' --mode now` twice, but the local OpenClaw gateway at `ws://127.0.0.1:18789` closed abnormally with code `1006`.
+- Confirmed the local OpenClaw LaunchAgent is loaded on port `18789` but not serving RPC correctly; a recovery attempt via `openclaw gateway restart` was blocked by sandboxed `launchctl` permissions (`Operation not permitted`).
